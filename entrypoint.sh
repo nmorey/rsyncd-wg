@@ -57,5 +57,5 @@ echo "Starting rsync daemon..."
 rsync --daemon --no-detach --config=/etc/rsyncd.conf
 
 # Keep the container running
-echo "Secure backup container is running."
+echo "rsyncd-wg container is running."
 tail -f /dev/null

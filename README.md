@@ -1,4 +1,4 @@
-# Secure Backup Container
+# rsyncd-wg: Secure Backup Container
 
 This project provides a Dockerized secure backup solution using `rsync` over WireGuard.
 
@@ -17,7 +17,7 @@ The container is designed to be secure and isolated:
 ### 1. Build the Docker image
 
 ```bash
-docker build -t secure-backup .
+docker build -t rsyncd-wg .
 ```
 
 ### 2. Run the Docker container
@@ -38,8 +38,8 @@ docker run -d --cap-add=NET_ADMIN --cap-add=SYS_MODULE -p 51820:51820/udp \
   -v $(pwd)/wireguard-keys:/etc/wireguard \
   -v $(pwd)/backup-data:/data/backups \
   -e RSYNC_PASSWORD="<your_rsync_password>" \
-  --name secure-backup-container \
-  secure-backup
+  --name rsyncd-wg-container \
+  rsyncd-wg
 ```
 
 **Notes:**
@@ -53,7 +53,7 @@ docker run -d --cap-add=NET_ADMIN --cap-add=SYS_MODULE -p 51820:51820/udp \
 The first time you run the container, it will generate a new WireGuard key pair for the server and print the public key to the logs. You need this public key to configure your WireGuard client. It will also create a default `wg0.conf` file.
 
 ```bash
-docker logs secure-backup-container
+docker logs rsyncd-wg-container
 ```
 
 You will see an output like this:
@@ -118,3 +118,5 @@ rsync -av --password-file=~/.rsync-password /path/to/your/files/ backupuser@10.0
 ```
 
 This will transfer the files from `/path/to/your/files/` on your local machine to the `/data/backups` directory inside the container.
+
+```
