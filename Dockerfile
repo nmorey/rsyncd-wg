@@ -1,19 +1,23 @@
-FROM alpine:latest
+# Use a lightweight base image
+FROM alpine:3.20
 
 # Install necessary packages
-RUN apk update && \
-    apk add wireguard-tools rsync \
-            wireguard-tools-wg-quick iptables
+RUN apk add --no-cache rsync wireguard-tools
 
-# Create directories for Wireguard
-RUN mkdir -p /etc/wireguard
-RUN mkdir -p /config
-RUN mkdir -p /backup
+# Create a directory for the data that will be backed up
+RUN mkdir -p /data/backups
 
-# Expose port for Wireguard
+# Create a non-root user for running rsyncd
+RUN adduser -D -h /data/backups backupuser
+RUN chown -R backupuser:backupuser /data/backups
+
+# Copy the configuration files
+COPY rsyncd.conf /etc/rsyncd.conf
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Expose the WireGuard port
 EXPOSE 51820/udp
 
-COPY run.sh /
-USER root
-
-ENTRYPOINT [ "/run.sh" ]
+# Set the entrypoint
+ENTRYPOINT ["/entrypoint.sh"]
