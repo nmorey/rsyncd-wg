@@ -15,6 +15,7 @@ mkdir -p /etc/wireguard
 if [ ! -f "/etc/wireguard/server_private_key" ]; then
     echo "First run: Generating WireGuard server keys and configuration..."
     wg genkey | tee /etc/wireguard/server_private_key | wg pubkey > /etc/wireguard/server_public_key
+    chmod 600 /etc/wireguard/server_private_key /etc/wireguard/server_public_key
     echo "===================================================="
     echo "Dumping public server key to the logs:"
     cat /etc/wireguard/server_public_key
