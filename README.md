@@ -71,13 +71,13 @@ You need to edit the `wg0.conf` file on the host machine (in the `./wireguard-ke
 Example `wg0.conf`:
 ```
 [Interface]
-Address = 10.0.0.1/24
+Address = 10.6.0.1/24
 ListenPort = 51820
 PrivateKey = <server_private_key_will_be_here>
 
 [Peer]
 PublicKey = <your_client_public_key>
-AllowedIPs = 10.0.0.2/32
+AllowedIPs = 10.6.0.2/32
 ```
 
 ### 4. Configure your WireGuard client
@@ -85,16 +85,14 @@ AllowedIPs = 10.0.0.2/32
 Configure your WireGuard client to connect to the container. Here is an example client configuration:
 
 ```
-
-```
 [Interface]
 PrivateKey = <your_client_private_key>
-Address = 10.0.0.2/32
+Address = 10.6.0.2/32
 
 [Peer]
 PublicKey = <server_public_key>
 Endpoint = <your_server_ip>:51820
-AllowedIPs = 10.0.0.1/32
+AllowedIPs = 10.6.0.1/32
 PersistentKeepalive = 25
 ```
 
@@ -114,9 +112,10 @@ chmod 600 ~/.rsync-password
 Now you can use `rsync` to transfer files:
 
 ```bash
-rsync -av --password-file=~/.rsync-password /path/to/your/files/ backupuser@10.0.0.1::backups
+rsync -av --password-file=~/.rsync-password /path/to/your/files/ backupuser@10.6.0.1::backups
 ```
 
 This will transfer the files from `/path/to/your/files/` on your local machine to the `/data/backups` directory inside the container.
+Note: internally, the container uses a backupuser with uid/gid=1000. Thus the volumes mapped from hosts needs to be writable by uid=1000.
 
 ```
