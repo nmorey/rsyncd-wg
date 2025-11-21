@@ -116,6 +116,5 @@ rsync -av --password-file=~/.rsync-password /path/to/your/files/ backupuser@10.6
 ```
 
 This will transfer the files from `/path/to/your/files/` on your local machine to the `/data/backups` directory inside the container.
-Note: internally, the container uses a backupuser with uid/gid=1000. Thus the volumes mapped from hosts needs to be writable by uid=1000.
 
-```
+Note: internally, the container uses a backupuser with uid/gid=1000. Thus the volumes mapped from hosts needs to be writable by uid=1000.
