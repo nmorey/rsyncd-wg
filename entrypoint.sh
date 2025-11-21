@@ -44,6 +44,7 @@ if [ "$REMOTE_IP" == "" ]; then
     echo "Error in AllowedIPs format in wg0.conf"
     exit 1
 fi
+echo "Hosts allowed to connect has IP: ${REMOTE_IP}"
 sed -i -e 's/^\([ \t]*hosts allow = \).*$/\1'$REMOTE_IP'/' /etc/rsyncd.conf
 
 # Create rsync secrets file
