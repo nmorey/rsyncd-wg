@@ -24,18 +24,27 @@ if [ ! -f "/etc/wireguard/server_private_key" ]; then
     # Create WireGuard configuration
     cat > /etc/wireguard/wg0.conf <<EOL
 [Interface]
-Address = 10.0.0.1/24
+Address = 10.6.0.1/24
 ListenPort = 51820
 PrivateKey = $(cat /etc/wireguard/server_private_key)
 
 [Peer]
 # PublicKey = INSERT_CLIENT_PUBLIC_KEY_HERE
-AllowedIPs = 10.0.0.2/32
+AllowedIPs = 10.6.0.2/32
 EOL
     echo "Please edit /etc/wireguard/wg0.conf to add your client's public key"
 fi
 
-
+# Extract IP from wireguard to config and set it as the authorized sender in rsync
+REMOTE_IP=$(grep -E '^AllowedIPs' /etc/wireguard/wg0.conf  |\
+                grep -E '/32$' | \
+                head -n 1 | \
+                sed -re 's/^(AllowedIPs += +(([0-9]{1,3}\.){3}[0-9]{1,3})\/32)?.*/\2/')
+if [ "$REMOTE_IP" == "" ]; then
+    echo "Error in AllowedIPs format in wg0.conf"
+    exit 1
+fi
+sed -i -e 's/^\([ \t]*hosts allow = \).*$/\1'$REMOTE_IP'/' /etc/rsyncd.conf
 
 # Create rsync secrets file
 echo "Creating rsync secrets file..."
