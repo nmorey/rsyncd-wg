@@ -38,6 +38,8 @@ docker run -d --cap-add=NET_ADMIN --cap-add=SYS_MODULE -p 51820:51820/udp \
   -v $(pwd)/wireguard-keys:/etc/wireguard \
   -v $(pwd)/backup-data:/data/backups \
   -e RSYNC_PASSWORD="<your_rsync_password>" \
+  -e HOST_UID=<host user id for rsyncd user"> \
+  -e HOST_GID=<host group id for rsyncd user"> \
   --name rsyncd-wg-container \
   rsyncd-wg
 ```
@@ -117,4 +119,4 @@ rsync -av --password-file=~/.rsync-password /path/to/your/files/ backupuser@10.6
 
 This will transfer the files from `/path/to/your/files/` on your local machine to the `/data/backups` directory inside the container.
 
-Note: internally, the container uses a backupuser with uid/gid=1000. Thus the volumes mapped from hosts needs to be writable by uid=1000.
+Note: unless HOST_UID and HOST_GID are specified, the container uses a backupuser with uid/gid=1000. Thus the volumes mapped from hosts needs to be writable by uid=1000.

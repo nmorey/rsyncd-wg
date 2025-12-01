@@ -8,6 +8,22 @@ if [ -z "$RSYNC_PASSWORD" ]; then
     exit 1
 fi
 
+# Create a backupuser
+# If HOST_UID and HOST_GID are set, use them.
+if [ -n "$HOST_UID" ] && [ -n "$HOST_GID" ]; then
+  echo "HOST_UID and HOST_GID are set. Creating backupuser with UID=$HOST_UID and GID=$HOST_GID"
+  addgroup -g "$HOST_GID" backupuser
+  adduser -D -h /data/backups -u "$HOST_UID" -G backupuser backupuser
+# Otherwise, create the user with default IDs.
+else
+  echo "HOST_UID and HOST_GID are not set. Creating backupuser with default UID/GID."
+  adduser -D -h /data/backups backupuser
+fi
+
+# Set ownership of the backups directory.
+echo "Setting ownership of /data/backups"
+chown backupuser:backupuser /data/backups
+
 # Create WireGuard configuration directory
 mkdir -p /etc/wireguard
 

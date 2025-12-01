@@ -7,10 +7,6 @@ RUN apk add --no-cache rsync wireguard-tools
 # Create a directory for the data that will be backed up
 RUN mkdir -p /data/backups
 
-# Create a non-root user for running rsyncd
-RUN adduser -D -h /data/backups backupuser
-RUN chown -R backupuser:backupuser /data/backups
-
 # Copy the configuration files
 COPY rsyncd.conf /etc/rsyncd.conf
 COPY entrypoint.sh /entrypoint.sh
