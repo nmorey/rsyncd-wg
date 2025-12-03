@@ -1,6 +1,7 @@
 #!/bin/sh
 
 set -e
+
 RSYNC_USER="backupuser"
 
 # Check for required environment variables
@@ -22,21 +23,21 @@ if getent group "${RSYNC_USER}" >/dev/null 2>&1; then
         groupdel "${RSYNC_USER}"
 fi
 
-# Create a backupuser
+# Create a rsync user
 # If HOST_UID and HOST_GID are set, use them.
 if [ -n "$HOST_UID" ] && [ -n "$HOST_GID" ]; then
-  echo "HOST_UID and HOST_GID are set. Creating backupuser with UID=$HOST_UID and GID=$HOST_GID"
-  addgroup -g "$HOST_GID" backupuser
-  adduser -D -h /data/backups -u "$HOST_UID" -G backupuser backupuser
+  echo "HOST_UID and HOST_GID are set. Creating ${RSYNC_USER} with UID=$HOST_UID and GID=$HOST_GID"
+  addgroup -g "$HOST_GID" ${RSYNC_USER}
+  adduser -D -h /data/backups -u "$HOST_UID" -G ${RSYNC_USER} ${RSYNC_USER}
   # Otherwise, create the user with default IDs.
 else
-  echo "HOST_UID and HOST_GID are not set. Creating backupuser with default UID/GID."
-  adduser -D -h /data/backups backupuser
+  echo "HOST_UID and HOST_GID are not set. Creating ${RSYNC_USER} with default UID/GID."
+  adduser -D -h /data/backups ${RSYNC_USER}
 fi
 
 # Set ownership of the backups directory.
 echo "Setting ownership of /data/backups"
-chown backupuser:backupuser /data/backups
+chown ${RSYNC_USER}:${RSYNC_USER} /data/backups
 
 # Create WireGuard configuration directory
 mkdir -p /etc/wireguard
@@ -79,7 +80,7 @@ sed -i -e 's/^\([ \t]*hosts allow = \).*$/\1'$REMOTE_IP'/' /etc/rsyncd.conf
 
 # Create rsync secrets file
 echo "Creating rsync secrets file..."
-echo "backupuser:$RSYNC_PASSWORD" > /etc/rsyncd.secrets
+echo "${RSYNC_USER}:$RSYNC_PASSWORD" > /etc/rsyncd.secrets
 chmod 600 /etc/rsyncd.secrets
 
 # Checking backup dir
