@@ -1,11 +1,25 @@
 #!/bin/sh
 
 set -e
+RSYNC_USER="backupuser"
 
 # Check for required environment variables
 if [ -z "$RSYNC_PASSWORD" ]; then
     echo "Error: RSYNC_PASSWORD environment variable is not set."
     exit 1
+fi
+
+# Check if the user exists and delete it
+# This step prevents the 'user already exists' error on restart.
+if id -u "${RSYNC_USER}" >/dev/null 2>&1; then
+    echo "Deleting existing user ${RSYNC_USER}..."
+    deluser "${RSYNC_USER}"
+fi
+
+# Check if the group exists and modify/create it
+if getent group "${RSYNC_USER}" >/dev/null 2>&1; then
+        echo "Delete group ${RSYNC_USER}..."
+        groupdel "${RSYNC_USER}"
 fi
 
 # Create a backupuser
@@ -14,7 +28,7 @@ if [ -n "$HOST_UID" ] && [ -n "$HOST_GID" ]; then
   echo "HOST_UID and HOST_GID are set. Creating backupuser with UID=$HOST_UID and GID=$HOST_GID"
   addgroup -g "$HOST_GID" backupuser
   adduser -D -h /data/backups -u "$HOST_UID" -G backupuser backupuser
-# Otherwise, create the user with default IDs.
+  # Otherwise, create the user with default IDs.
 else
   echo "HOST_UID and HOST_GID are not set. Creating backupuser with default UID/GID."
   adduser -D -h /data/backups backupuser
