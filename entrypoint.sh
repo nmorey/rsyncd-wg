@@ -83,11 +83,6 @@ echo "Creating rsync secrets file..."
 echo "${RSYNC_USER}:$RSYNC_PASSWORD" > /etc/rsyncd.secrets
 chmod 600 /etc/rsyncd.secrets
 
-# Checking backup dir
-echo "Checking write access to backup directory"
-ls -alFd /data/backups
-cd /data/backups && touch .
-
 # Start WireGuard
 echo "Starting WireGuard..."
 
