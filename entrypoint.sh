@@ -1,72 +1,63 @@
 #!/bin/sh
-
 set -e
 
+# Define standard user
 RSYNC_USER="backupuser"
+RSYNC_GROUP="backupuser"
 
-# Check for required environment variables
-if [ -z "$RSYNC_PASSWORD" ]; then
-    echo "Error: RSYNC_PASSWORD environment variable is not set."
-    exit 1
-fi
+# trap SIGTERM and SIGINT to shutdown wireguard cleanly
+cleanup() {
+    echo "Shutting down WireGuard..."
+    wg-quick down wg0 || true
+    exit 0
+}
+trap cleanup TERM INT
 
-# Check if the user exists and delete it
-# This step prevents the 'user already exists' error on restart.
-if id -u "${RSYNC_USER}" >/dev/null 2>&1; then
-    echo "Deleting existing user ${RSYNC_USER}..."
-    deluser "${RSYNC_USER}"
-fi
-
-# Check if the group exists and modify/create it
-if getent group "${RSYNC_USER}" >/dev/null 2>&1; then
-        echo "Delete group ${RSYNC_USER}..."
-        groupdel "${RSYNC_USER}"
-fi
-
-# Create a rsync user
-# If HOST_UID and HOST_GID are set, use them.
+# --- User Management ---
+# If HOST_UID/GID are passed, modify the existing user instead of deleting/recreating
 if [ -n "$HOST_UID" ] && [ -n "$HOST_GID" ]; then
-  echo "HOST_UID and HOST_GID are set. Creating ${RSYNC_USER} with UID=$HOST_UID and GID=$HOST_GID"
-  addgroup -g "$HOST_GID" ${RSYNC_USER}
-  adduser -D -h /data/backups -u "$HOST_UID" -G ${RSYNC_USER} ${RSYNC_USER}
-  # Otherwise, create the user with default IDs.
-else
-  echo "HOST_UID and HOST_GID are not set. Creating ${RSYNC_USER} with default UID/GID."
-  adduser -D -h /data/backups ${RSYNC_USER}
+    echo "Updating $RSYNC_USER to UID $HOST_UID / GID $HOST_GID"
+    # Change the group ID
+    sed -i "s/^$RSYNC_GROUP:x:[0-9]*:/$RSYNC_GROUP:x:$HOST_GID:/" /etc/group
+    # Change the user ID
+    sed -i "s/^$RSYNC_USER:x:[0-9]*:[0-9]*:/$RSYNC_USER:x:$HOST_UID:$HOST_GID:/" /etc/passwd
 fi
 
-# Set ownership of the backups directory.
-echo "Setting ownership of /data/backups"
-chown ${RSYNC_USER}:${RSYNC_USER} /data/backups
+# Check ownership of the data directory root
+CURRENT_OWNER=$(stat -c '%u:%g' /data/backups)
+TARGET_OWNER="$HOST_UID:$HOST_GID"
 
-# Create WireGuard configuration directory
+if [ "$CURRENT_OWNER" != "$TARGET_OWNER" ]; then
+    echo "Ownership mismatch ($CURRENT_OWNER vs $TARGET_OWNER). Fixing permissions..."
+    chown "$HOST_UID:$HOST_GID" /data/backups
+else
+    echo "Permissions on /data/backups are correct. Skipping chown."
+fi
+
+# --- WireGuard Setup ---
 mkdir -p /etc/wireguard
-
-# Generate server keys and configuration if they don't exist
 if [ ! -f "/etc/wireguard/server_private_key" ]; then
-    echo "First run: Generating WireGuard server keys and configuration..."
+    echo "Generating new keys..."
     wg genkey | tee /etc/wireguard/server_private_key | wg pubkey > /etc/wireguard/server_public_key
-    chmod 600 /etc/wireguard/server_private_key /etc/wireguard/server_public_key
+    chmod 600 /etc/wireguard/server_*
     echo "===================================================="
     echo "Dumping public server key to the logs:"
     cat /etc/wireguard/server_public_key
     echo "===================================================="
 
-    # Create WireGuard configuration
+    # Generate default config
     cat > /etc/wireguard/wg0.conf <<EOL
 [Interface]
 Address = 10.6.0.1/24
 ListenPort = 51820
 PrivateKey = $(cat /etc/wireguard/server_private_key)
-
 [Peer]
-# PublicKey = INSERT_CLIENT_PUBLIC_KEY_HERE
 AllowedIPs = 10.6.0.2/32
 EOL
     echo "Please edit /etc/wireguard/wg0.conf to add your client's public key"
 fi
 
-# Extract IP from wireguard to config and set it as the authorized sender in rsync
+# Dynamically update AllowedIPs in rsyncd.conf based on wg0.conf
 REMOTE_IP=$(grep -E '^AllowedIPs' /etc/wireguard/wg0.conf  |\
                 grep -E '/32$' | \
                 head -n 1 | \
@@ -74,18 +65,17 @@ REMOTE_IP=$(grep -E '^AllowedIPs' /etc/wireguard/wg0.conf  |\
 if [ "$REMOTE_IP" == "" ]; then
     echo "Error in AllowedIPs format in wg0.conf"
     exit 1
+else
+    echo "Restricting rsync to WireGuard Peer IP: $REMOTE_IP"
+    sed -i "s|^[ \t]*hosts allow.*|    hosts allow = $REMOTE_IP|" /etc/rsyncd.conf
 fi
-echo "Hosts allowed to connect has IP: ${REMOTE_IP}"
-sed -i -e 's/^\([ \t]*hosts allow = \).*$/\1'$REMOTE_IP'/' /etc/rsyncd.conf
 
-# Create rsync secrets file
+# Set rsync secrets
 echo "Creating rsync secrets file..."
-echo "${RSYNC_USER}:$RSYNC_PASSWORD" > /etc/rsyncd.secrets
+echo "$RSYNC_USER:$RSYNC_PASSWORD" > /etc/rsyncd.secrets
 chmod 600 /etc/rsyncd.secrets
 
-# Start WireGuard
 echo "Starting WireGuard..."
-
 # Check if the client public key has been configured
 if grep -q "# PublicKey = INSERT_CLIENT_PUBLIC_KEY_HERE" /etc/wireguard/wg0.conf; then
     echo "Error: WireGuard client public key is not configured in /etc/wireguard/wg0.conf"
@@ -94,10 +84,10 @@ fi
 
 wg-quick up wg0
 
-# Start rsync daemon
 echo "Starting rsync daemon..."
-rsync --daemon --no-detach --config=/etc/rsyncd.conf
+# Remove old pid if it exists
+rm -f /var/run/rsyncd.pid
 
-# Keep the container running
-echo "rsyncd-wg container is running."
-tail -f /dev/null
+# Run rsync in the foreground.
+# It will drop privileges to 'backupuser' automatically because of 'uid = backupuser' in rsyncd.conf
+exec rsync --daemon --no-detach --config=/etc/rsyncd.conf
