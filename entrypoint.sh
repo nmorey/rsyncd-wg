@@ -80,6 +80,12 @@ if [ -n "$RSYNC_PASSWORD_FILE" ]; then
         exit 1
     fi
 fi
+
+if [ -z "$RSYNC_PASSWORD" ]; then
+    echo "Error: RSYNC_PASSWORD is not set or empty."
+    exit 1
+fi
+
 echo "$RSYNC_USER:$RSYNC_PASSWORD" > /etc/rsyncd.secrets
 chmod 600 /etc/rsyncd.secrets
 
