@@ -72,6 +72,14 @@ fi
 
 # Set rsync secrets
 echo "Creating rsync secrets file..."
+if [ -n "$RSYNC_PASSWORD_FILE" ]; then
+    if [ -f "$RSYNC_PASSWORD_FILE" ]; then
+        RSYNC_PASSWORD=$(cat "$RSYNC_PASSWORD_FILE")
+    else
+        echo "Error: RSYNC_PASSWORD_FILE is set to '$RSYNC_PASSWORD_FILE' but the file does not exist."
+        exit 1
+    fi
+fi
 echo "$RSYNC_USER:$RSYNC_PASSWORD" > /etc/rsyncd.secrets
 chmod 600 /etc/rsyncd.secrets
 

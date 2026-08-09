@@ -22,9 +22,10 @@ docker build -t rsyncd-wg .
 
 ### 2. Run the Docker container
 
-You need to provide an environment variable when running the container:
+You need to provide one of the following environment variables when running the container:
 
 - `RSYNC_PASSWORD`: The password you want to use for `rsync` authentication.
+- `RSYNC_PASSWORD_FILE`: Alternatively, the path inside the container to a file containing the `rsync` password. This is useful for passing passwords securely using Docker secrets or mounted files.
 
 For persistent WireGuard keys and data, you should create directories on your host machine and mount them as volumes.
 
